@@ -59,7 +59,7 @@ def write_to_file(output_file, user, items):
     output_file.write(line)
 
 # Get user_item_dict
-fp = open("data/ratings.dat")
+fp = open("ratings.dat")
 line = fp.readline()
 while line:
     UserID, MovieID, Rating, _ = line.split("::")
@@ -74,7 +74,8 @@ output_train_file = open(output_train, 'w')
 
 for user,items in user_item_dict.items():
     train_items = random.sample(items, k=round(len(items) * 0.8))
-    user_item_dict[user] = list(set(items) - set(train_items))
+    #user_item_dict[user] = list(set(items) - set(train_items))
+    user_item_dict[user] = items
     write_to_file(output_train_file, user, train_items)
 
 # Write testing data

@@ -7,6 +7,7 @@ Xiangnan He et al. LightGCN: Simplifying and Powering Graph Convolution Network 
 Design training and test process
 '''
 import world
+import pickle
 import numpy as np
 import torch
 import utils
@@ -71,6 +72,20 @@ def test_one_batch(X):
     return {'recall':np.array(recall), 
             'precision':np.array(pre), 
             'ndcg':np.array(ndcg)}
+
+def test_one_batch_threhold(X):
+    sorted_items = X[0]
+    groundTrue = X[1]
+    r = utils.getLabel_threhold(groundTrue, sorted_items)
+    pre, recall, ndcg = [], [], []
+    ret = utils.RecallPrecision_ATk_threhold(groundTrue, r)
+    pre.append(ret['precision'])
+    recall.append(ret['recall'])
+    #ndcg.append(utils.NDCGatK_r_threhold(groundTrue, r))
+    ndcg.append(0)
+    return {'recall':np.array(recall),
+            'precision':np.array(pre),
+            'ndcg':np.array(ndcg)}
         
             
 def Test(dataset, Recmodel, epoch, w=None, multicore=0):
@@ -88,6 +103,15 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
                'ndcg': np.zeros(len(world.topks))}
     with torch.no_grad():
         users = list(testDict.keys())
+        # users_gpu = torch.Tensor(users).long()
+        # users_gpu = users_gpu.to(world.device)
+        # users_emb, items_emb = Recmodel.getUsersItemsEmbedding(users_gpu)
+        # res = dict()
+        # res['H'] = items_emb.numpy()
+        # res['W'] = users_emb.numpy()
+        # import pickle
+        # with open('../../code/user_item_embedding.pickle', 'wb') as handle:
+        #     pickle.dump(res, handle)
         try:
             assert u_batch_size <= len(users) / 10
         except AssertionError:
@@ -123,17 +147,41 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
             # del rating
 
             # TODO: Get indexes of the top k items for users
-            users_emb, items_emb = Recmodel.getUsersItemsEmbedding(batch_users_gpu)
+            users_emb, items_emb = Recmodel.getUsersItemsEmbeddingKDD(batch_users_gpu)
+            with open('./checkpoint/epoch'+str(epoch)+'+users_emb.pickle', 'wb') as handle:
+                pickle.dump(users_emb, handle)
+            with open('./checkpoint/epoch'+str(epoch)+'+items_emb.pickle', 'wb') as handle:
+                pickle.dump(items_emb, handle)
+
+            # # load embedding
+            # with open('./checkpoint/epoch10+users_emb.pickle', 'wb') as handle:
+            #     pickle.dump(users_emb, handle)
+            # with open('./checkpoint/epoch10+items_emb.pickle', 'wb') as handle:
+            #     pickle.dump(items_emb, handle)
+
             index = faiss.IndexFlatIP(items_emb.shape[1])
             index.add(items_emb.cpu().detach().numpy())
-            k = 500
-            _, I_top_500 = index.search(users_emb.cpu().detach().numpy(), k)
-            rating_K = np.zeros((len(users_emb), max_K))
-            for i in range(len(users_emb)):
-                rating_K[i] = [value for value in I_top_500[i] if value not in allPos[i]][:max_K]
+            faiss.normalize_L2(items_emb.cpu().detach().numpy())
+
+            # exclude
+            # k = 500
+            # _, I_top_500 = index.search(users_emb.cpu().detach().numpy(), k)
+            # rating_K = np.zeros((len(users_emb), max_K))
+            # for i in range(len(users_emb)):
+            #     rating_K[i] = [value for value in I_top_500[i] if value not in allPos[i]][:max_K]
+
+            # without exclude
+            _, rating_K = index.search(users_emb.cpu().detach().numpy(), max_K)
+
+            # threhold
+            # lims, D, I = index.range_search(users_emb.cpu().detach().numpy(), 0.2)
+            # rating_K = []
+            # for i in range(len(users_emb)):
+            #     rating_K.append(I[lims[i]:lims[i+1]])
 
             users_list.append(batch_users)
-            rating_list.append(torch.from_numpy(rating_K))
+            #rating_list.append(rating_K)
+            rating_list.append(torch.from_numpy(rating_K).cpu())
             groundTrue_list.append(groundTrue)
         assert total_batch == len(users_list)
         X = zip(rating_list, groundTrue_list)
@@ -143,7 +191,91 @@ def Test(dataset, Recmodel, epoch, w=None, multicore=0):
             pre_results = []
             for x in X:
                 pre_results.append(test_one_batch(x))
+                #pre_results.append(test_one_batch_threhold(x))
         scale = float(u_batch_size/len(users))
+        for result in pre_results:
+            results['recall'] += result['recall']
+            results['precision'] += result['precision']
+            results['ndcg'] += result['ndcg']
+        results['recall'] /= float(len(users))
+        results['precision'] /= float(len(users))
+        results['ndcg'] /= float(len(users))
+        # results['auc'] = np.mean(auc_record)
+        if world.tensorboard:
+            w.add_scalars(f'Test/Recall@{world.topks}',
+                          {str(world.topks[i]): results['recall'][i] for i in range(len(world.topks))}, epoch)
+            w.add_scalars(f'Test/Precision@{world.topks}',
+                          {str(world.topks[i]): results['precision'][i] for i in range(len(world.topks))}, epoch)
+            w.add_scalars(f'Test/NDCG@{world.topks}',
+                          {str(world.topks[i]): results['ndcg'][i] for i in range(len(world.topks))}, epoch)
+        if multicore == 1:
+            pool.close()
+        print(results)
+        return results
+
+def Test_threhold(dataset, Recmodel, epoch, w=None, multicore=0):
+    u_batch_size = world.config['test_u_batch_size']
+    dataset: utils.BasicDataset
+    testDict: dict = dataset.testDict  # dict: {user: [items]}
+    Recmodel: model.LightGCN
+    # eval mode with no dropout
+    Recmodel = Recmodel.eval()
+    max_K = max(world.topks)
+    if multicore == 1:
+        pool = multiprocessing.Pool(CORES)
+    results = {'precision': np.zeros(len(world.topks)),
+               'recall': np.zeros(len(world.topks)),
+               'ndcg': np.zeros(len(world.topks))}
+    with torch.no_grad():
+        users = list(testDict.keys())
+        try:
+            assert u_batch_size <= len(users) / 10
+        except AssertionError:
+            print(f"test_u_batch_size is too big for this dataset, try a small one {len(users) // 10}")
+        users_list = []
+        rating_list = []
+        groundTrue_list = []
+        total_batch = len(users) // u_batch_size + 1
+        for batch_users in utils.minibatch(users, batch_size=u_batch_size):
+            allPos = dataset.getUserPosItems(batch_users)
+            groundTrue = [testDict[u] for u in batch_users]
+            batch_users_gpu = torch.Tensor(batch_users).long()
+            batch_users_gpu = batch_users_gpu.to(world.device)
+
+            # TODO: Get indexes of the top k items for users
+            users_emb, items_emb = Recmodel.getUsersItemsEmbeddingKDD(batch_users_gpu)
+            with open('./checkpoint/epoch' + str(epoch) + '+users_emb.pickle', 'wb') as handle:
+                pickle.dump(users_emb, handle)
+            with open('./checkpoint/epoch' + str(epoch) + '+items_emb.pickle', 'wb') as handle:
+                pickle.dump(items_emb, handle)
+
+            index = faiss.IndexFlatIP(items_emb.shape[1])
+            index.add(items_emb.cpu().detach().numpy())
+            faiss.normalize_L2(items_emb.cpu().detach().numpy())
+
+            # # without exclude
+            # _, rating_K = index.search(users_emb.cpu().detach().numpy(), max_K)
+
+            # threhold
+            lims, D, I = index.range_search(users_emb.cpu().detach().numpy(), 0.5)
+            rating_K = []
+            for i in range(len(users_emb)):
+                rating_K.append(I[lims[i]:lims[i+1]])
+
+            users_list.append(batch_users)
+            rating_list.append(rating_K)
+            # rating_list.append(torch.from_numpy(rating_K).cpu())
+            groundTrue_list.append(groundTrue)
+        assert total_batch == len(users_list)
+        X = zip(rating_list, groundTrue_list)
+        if multicore == 1:
+            pre_results = pool.map(test_one_batch, X)
+        else:
+            pre_results = []
+            for x in X:
+                pre_results.append(test_one_batch_threhold(x))
+                # pre_results.append(test_one_batch_threhold(x))
+        scale = float(u_batch_size / len(users))
         for result in pre_results:
             results['recall'] += result['recall']
             results['precision'] += result['precision']
