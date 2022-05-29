@@ -12,6 +12,7 @@ import torch
 from dataloader import BasicDataset
 from torch import nn
 import numpy as np
+import pickle
 
 
 class BasicModel(nn.Module):    
@@ -198,6 +199,9 @@ class LightGCN(BasicModel):
     def bpr_loss(self, users, pos, neg):
         (users_emb, pos_emb, neg_emb, 
         userEmb0,  posEmb0, negEmb0) = self.getEmbedding(users.long(), pos.long(), neg.long())
+        user_pos_neg = {'Q':users_emb, 'D_pos':pos_emb, 'D_neg':neg_emb}
+        with open('user_pos_neg.pickle', 'wb') as handle:
+            pickle.dump(user_pos_neg, handle, protocol=pickle.HIGHEST_PROTOCOL)
         reg_loss = (1/2)*(userEmb0.norm(2).pow(2) + 
                          posEmb0.norm(2).pow(2)  +
                          negEmb0.norm(2).pow(2))/float(len(users))

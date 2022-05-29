@@ -16,7 +16,7 @@ import multiprocessing
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 args = parse_args()
 
-ROOT_PATH = "/Users/emma/Desktop/CS_249_GNN/project/LightGCN-PyTorch"
+ROOT_PATH = "/Users/yuneshou/Desktop/2022sp/CS249/Learn_to_Hash_GNN_Recommender_System/LightGCN-PyTorch"
 CODE_PATH = join(ROOT_PATH, 'code')
 DATA_PATH = join(ROOT_PATH, 'data')
 BOARD_PATH = join(CODE_PATH, 'runs')

@@ -221,7 +221,7 @@ class Loader(BasicDataset):
     gowalla dataset
     """
 
-    def __init__(self,config = world.config,path="../data/gowalla"):
+    def __init__(self,config = world.config,path="../data/ml-1m"):
         # train or test
         cprint(f'loading [{path}]')
         self.split = config['A_split']

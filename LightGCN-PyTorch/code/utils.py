@@ -224,6 +224,28 @@ def RecallPrecision_ATk(test_data, r, k):
     precis = np.sum(right_pred)/precis_n
     return {'recall': recall, 'precision': precis}
 
+def list_to_np(a):
+    b = np.zeros([len(a), len(max(a, key=lambda x: len(x)))])
+    for i, j in enumerate(a):
+        b[i][0:len(j)] = j
+    return b
+
+def RecallPrecision_ATk_threhold(test_data, r):
+    """
+        test_data should be a list? cause users may have different amount of pos items. shape (test_batch, k)
+        pred_data : shape (test_batch, k) NOTE: pred_data should be pre-sorted
+        k : top-k
+        """
+    r_np = list_to_np(r)
+    right_pred = r_np.sum(1)
+    recall_n = np.array([len(test_data[i]) for i in range(len(test_data))])
+    recall = np.sum(right_pred / recall_n)
+    precis = 0
+    for i in range(len(r)):
+        precis += right_pred[i]/len(r[i])
+    #precis = np.sum(right_pred / precis_n)
+    return {'recall': recall, 'precision': precis}
+
 
 def MRRatK_r(r, k):
     """
