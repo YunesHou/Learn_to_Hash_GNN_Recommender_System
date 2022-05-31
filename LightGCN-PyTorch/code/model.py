@@ -296,6 +296,7 @@ class LightGCN(BasicModel):
     # Add for faiss
     def getUsersItemsEmbeddingKDD(self, users):
         all_users, all_items = self.computer()
+
         users_emb = all_users[users.long()]
         items_emb = all_items
 
@@ -313,6 +314,16 @@ class LightGCN(BasicModel):
         true_pred = self.decoder(o_bcode, q_bcode) #g(c)
 
         return q_bcode, true_pred
+
+    def getPretrainUsersItemsEmbedding(self, users, epoch):
+        with open("checkpointKDD/epoch"+str(epoch)+"+users_emb.pickle", "rb") as f:
+            all_users = pickle.load(f)
+        with open("checkpointKDD/epoch"+str(epoch)+"+items_emb.pickle", "rb") as f:
+            all_items = pickle.load(f)
+
+        users_emb = all_users[users.long()]
+        items_emb = all_items
+        return users_emb, items_emb
 
     def getEmbeddingKDD(self, users, pos_items, neg_items):
         (users_emb, pos_emb, neg_emb,
@@ -367,6 +378,7 @@ class LightGCN(BasicModel):
         (users_emb, pos_emb, neg_emb,
          userEmb0, posEmb0, negEmb0) = self.getEmbeddingKDD(users.long(), pos.long(), neg.long())
         # add hash function here
+        reg_loss = (1/2)*(userEmb0.norm(2).pow(2) + posEmb0.norm(2).pow(2) + negEmb0.norm(2).pow(2))/float(len(users))
         pos_scores = torch.mul(users_emb, pos_emb)
         pos_scores = torch.sum(pos_scores, dim=1)
         neg_scores = torch.mul(users_emb, neg_emb)
@@ -374,7 +386,7 @@ class LightGCN(BasicModel):
 
         loss = torch.mean(torch.nn.functional.softplus(neg_scores - pos_scores))
 
-        return loss, 0
+        return loss, reg_loss
        
     def forward(self, users, items):
         # compute embedding

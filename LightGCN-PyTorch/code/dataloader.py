@@ -230,8 +230,10 @@ class Loader(BasicDataset):
         self.mode = self.mode_dict['train']
         self.n_user = 0
         self.m_item = 0
-        train_file = path + '/train.txt'
-        test_file = path + '/test.txt'
+        # train_file = path + '/train.txt'
+        # test_file = path + '/test.txt'
+        train_file = path + '/train_82.txt'
+        test_file = path + '/test_82.txt'
         self.path = path
         trainUniqueUsers, trainItem, trainUser = [], [], []
         testUniqueUsers, testItem, testUser = [], [], []

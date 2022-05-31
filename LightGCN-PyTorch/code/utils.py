@@ -224,7 +224,10 @@ def RecallPrecision_ATk(test_data, r, k):
     recall = np.sum(right_pred/recall_n)
     temp = np.sum(right_pred)
     precis = np.sum(right_pred)/precis_n
-    return {'recall': recall, 'precision': precis}
+    f1 = 0
+    if precis + recall > 0:
+        f1 = (2.0 * precis * recall) / (precis + recall)
+    return {'recall': recall, 'precision': precis, 'f1': f1}
 
 def list_to_np(a):
     b = np.zeros([len(a), len(max(a, key=lambda x: len(x)))])
@@ -232,7 +235,7 @@ def list_to_np(a):
         b[i][0:len(j)] = j
     return b
 
-def RecallPrecision_ATk_threhold(test_data, r):
+def RecallPrecisionF1_ATk_threhold(test_data, r):
     """
         test_data should be a list? cause users may have different amount of pos items. shape (test_batch, k)
         pred_data : shape (test_batch, k) NOTE: pred_data should be pre-sorted
@@ -244,9 +247,16 @@ def RecallPrecision_ATk_threhold(test_data, r):
     recall = np.sum(right_pred / recall_n)
     precis = 0
     for i in range(len(r)):
-        precis += right_pred[i]/len(r[i])
+        if len(r[i]) == 0:
+            precis += 0
+        else:
+            precis += right_pred[i]/len(r[i])
     #precis = np.sum(right_pred / precis_n)
-    return {'recall': recall, 'precision': precis}
+
+    f1 = 0
+    if precis + recall > 0:
+        f1 = (2.0 * precis * recall) / (precis + recall)
+    return {'recall': recall, 'precision': precis, 'f1': f1}
 
 
 def MRRatK_r(r, k):
@@ -280,26 +290,32 @@ def NDCGatK_r(test_data,r,k):
     ndcg[np.isnan(ndcg)] = 0.
     return np.sum(ndcg)
 
-def NDCGatK_r_threhold(test_data,r,k):
+def getDCG(scores):
+    return np.sum(
+        np.divide(np.power(2, scores) - 1, np.log2(np.arange(scores.shape[0], dtype=np.float32) + 2)),
+        dtype=np.float32)
+
+def NDCGatK_r_threhold(test_data,r):
     """
     Normalized Discounted Cumulative Gain
     rel_i = 1 or 0, so 2^{rel_i} - 1 = 1 or 0
     """
-    assert len(r) == len(test_data)
-    pred_data = r[:, :k]
+    sum_ndcg = 0
+    for i in range(len(test_data)):
+        relevance = np.ones_like(test_data[i])
+        it2rel = {it: r for it, r in zip(test_data[i], relevance)}
+        rank_scores = np.asarray([it2rel.get(it, 0.0) for it in r[i]], dtype=np.float32)
 
-    test_matrix = np.zeros((len(pred_data), k))
-    for i, items in enumerate(test_data):
-        length = k if k <= len(items) else len(items)
-        test_matrix[i, :length] = 1
-    max_r = test_matrix
-    idcg = np.sum(max_r * 1./np.log2(np.arange(2, k + 2)), axis=1)
-    dcg = pred_data*(1./np.log2(np.arange(2, k + 2)))
-    dcg = np.sum(dcg, axis=1)
-    idcg[idcg == 0.] = 1.
-    ndcg = dcg/idcg
-    ndcg[np.isnan(ndcg)] = 0.
-    return np.sum(ndcg)
+        idcg = getDCG(relevance)
+        dcg = getDCG(rank_scores)
+
+        if dcg == 0.0:
+            sum_ndcg += 0
+            continue
+
+        ndcg = dcg / idcg
+        sum_ndcg += ndcg
+    return sum_ndcg
 
 def AUC(all_item_scores, dataset, test_data):
     """
