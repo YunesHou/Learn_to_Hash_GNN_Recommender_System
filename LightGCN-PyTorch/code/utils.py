@@ -224,6 +224,24 @@ def RecallPrecision_ATk(test_data, r, k):
     precis = np.sum(right_pred)/precis_n
     return {'recall': recall, 'precision': precis}
 
+
+def RecallPrecisionF1_ATk(test_data, r, k):
+    """
+        test_data should be a list? cause users may have different amount of pos items. shape (test_batch, k)
+        pred_data : shape (test_batch, k) NOTE: pred_data should be pre-sorted
+        k : top-k
+        """
+    right_pred = r[:, :k].sum(1)
+    precis_n = k
+    recall_n = np.array([len(test_data[i]) for i in range(len(test_data))])
+    recall = np.sum(right_pred / recall_n)
+    precis = np.sum(right_pred)/precis_n
+
+    f1 = 0
+    if precis + recall > 0:
+        f1 = (2.0 * precis * recall) / (precis + recall)
+    return {'recall': recall, 'precision': precis, 'f1': f1}
+
 def list_to_np(a):
     b = np.zeros([len(a), len(max(a, key=lambda x: len(x)))])
     for i, j in enumerate(a):
