@@ -212,7 +212,7 @@ def Test_threhold(dataset, Recmodel, epoch, w=None, multicore=0, threhold=0):
 
             # Get epoch 100's users_emb & items_emb
             # users_emb, items_emb = Recmodel.getPretrainUsersItemsEmbedding(batch_users_gpu, 100)
-            users_emb, items_emb = Recmodel.getUsersItemsEmbedding(batch_users_gpu, 100)
+            users_emb, items_emb = Recmodel.getUsersItemsEmbedding(batch_users_gpu)
 
             index = faiss.IndexFlatIP(items_emb.shape[1])
             index.add(items_emb.cpu().detach().numpy())
