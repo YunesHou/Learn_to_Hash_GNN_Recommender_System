@@ -43,4 +43,8 @@ def parse_args():
     parser.add_argument('--pretrain', type=int, default=0, help='whether we use pretrained weight or not')
     parser.add_argument('--seed', type=int, default=2020, help='random seed')
     parser.add_argument('--model', type=str, default='lgn', help='rec-model, support [mf, lgn]')
+
+    parser.add_argument ( '--threhold', type=float, default=4.0,
+                          help="the threhold" )
+
     return parser.parse_args()

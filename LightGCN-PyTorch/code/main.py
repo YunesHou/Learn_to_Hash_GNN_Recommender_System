@@ -48,7 +48,7 @@ try:
             Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'])
 
             # for threshold
-            # Procedure.Test_threhold(dataset, Recmodel, epoch, w, world.config['multicore'])
+            # Procedure.Test_threhold(dataset, Recmodel, epoch, w, world.config['multicore'], threhold)
 
             # for pretrain
             # Procedure.Test_Pretrain(dataset, Recmodel, epoch, w, world.config['multicore'])

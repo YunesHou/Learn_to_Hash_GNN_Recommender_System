@@ -16,7 +16,7 @@ import multiprocessing
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 args = parse_args()
 
-ROOT_PATH = "/Users/yuneshou/Desktop/2022sp/CS249/Learn_to_Hash_GNN_Recommender_System/LightGCN-PyTorch"
+ROOT_PATH = "/content/drive/MyDrive/CS249/Learn_to_Hash_GNN_Recommender_System-ljy/LightGCN-PyTorch"
 CODE_PATH = join(ROOT_PATH, 'code')
 DATA_PATH = join(ROOT_PATH, 'data')
 BOARD_PATH = join(CODE_PATH, 'runs')
@@ -46,6 +46,7 @@ config['decay'] = args.decay
 config['pretrain'] = args.pretrain
 config['A_split'] = False
 config['bigdata'] = False
+config['threhold'] = args.threhold
 
 GPU = torch.cuda.is_available()
 device = torch.device('cuda' if GPU else "cpu")
@@ -60,7 +61,7 @@ if model_name not in all_models:
     raise NotImplementedError(f"Haven't supported {model_name} yet!, try {all_models}")
 
 
-
+threhold = args.threhold
 
 TRAIN_epochs = args.epochs
 LOAD = args.load
