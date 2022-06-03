@@ -1,3 +1,4 @@
+from functools import total_ordering
 import world
 import utils
 from world import cprint
@@ -5,6 +6,7 @@ import torch
 import numpy as np
 from tensorboardX import SummaryWriter
 import time
+import matplotlib.pyplot as plt
 import Procedure
 from os.path import join
 # ==============================
@@ -13,7 +15,6 @@ print(">>SEED:", world.seed)
 # ==============================
 import register
 from register import dataset
-
 
 Recmodel = register.MODELS[world.model_name](world.config, dataset)
 Recmodel = Recmodel.to(world.device)
@@ -43,7 +44,14 @@ try:
         start = time.time()
         if epoch %10 == 0:
             cprint("[TEST]")
+            # for topK
             Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'])
+
+            # for threshold
+            # Procedure.Test_threhold(dataset, Recmodel, epoch, w, world.config['multicore'])
+
+            # for pretrain
+            # Procedure.Test_Pretrain(dataset, Recmodel, epoch, w, world.config['multicore'])
         output_information = Procedure.BPR_train_original(dataset, Recmodel, bpr, epoch, neg_k=Neg_k,w=w)
         print(f'EPOCH[{epoch+1}/{world.TRAIN_epochs}] {output_information}')
         torch.save(Recmodel.state_dict(), weight_file)
