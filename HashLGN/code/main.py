@@ -45,10 +45,10 @@ try:
         if epoch %10 == 0:
             cprint("[TEST]")
             # for topK
-            # Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'])
+            Procedure.Test(dataset, Recmodel, epoch, w, world.config['multicore'])
 
             # for threshold
-            Procedure.Test_threhold(dataset, Recmodel, epoch, w, world.config['multicore'], world.threhold)
+            # Procedure.Test_threhold(dataset, Recmodel, epoch, w, world.config['multicore'], world.threhold)
 
             # for pretrain
             # Procedure.Test_Pretrain(dataset, Recmodel, epoch, w, world.config['multicore'])
